@@ -1,0 +1,49 @@
+pipeline {
+    agent any
+    environment {
+        TARGET_DIR = "/var/www/flask_app" // Deployment directory
+    }
+    triggers {
+        githubPush() // Trigger pipeline on push
+    }
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main', url: 'https://github.com/username/flask-app.git'
+            }
+        }
+        stage('Install Dependencies') {
+            steps {
+                sh 'python3 -m venv venv'
+                sh './venv/bin/pip install -r requirements.txt'
+            }
+        }
+        stage('Run Unit Tests') {
+            steps {
+                sh './venv/bin/pytest tests/'
+            }
+        }
+        stage('Build Application') {
+            steps {
+                sh 'tar -czf flask_app.tar.gz .'
+            }
+        }
+        stage('Deploy Application') {
+            steps {
+                sh """
+                mkdir -p $TARGET_DIR
+                tar -xzf flask_app.tar.gz -C $TARGET_DIR
+                """
+                sh 'sudo systemctl restart flask-app.service' // Replace with your Flask app service
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Pipeline executed successfully.'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
+}
